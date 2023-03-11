@@ -1,0 +1,8 @@
+{
+    "name": "Antony Identity",
+    "description": "A person, maybe, idk",
+    "image": "https://id.antony.cloud/img/1.png",
+    "external_link": "https://antony.wiki",
+    "seller_fee_basis_points": 200,
+    "fee_recipient": "0x2B5c7025998f88550Ef2fEce8bf87935f542C190"
+}
