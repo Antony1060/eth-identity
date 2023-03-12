@@ -18,6 +18,7 @@ contract Identity {
     mapping(address => uint256) internal _balanceOf;
 
     uint256 public totalSupply = 0;
+    uint256 internal _startId = 0;
 
     mapping(uint256 => address) public getApproved;
     mapping(address => mapping(address => bool)) public isApprovedForAll;
@@ -41,7 +42,7 @@ contract Identity {
     }
 
     function _nextTokenId() internal view returns (uint256) {
-        return totalSupply + 1;
+        return _startId + 1;
     }
 
     function toString(uint256 value) internal pure returns (string memory) {
@@ -67,6 +68,7 @@ contract Identity {
     }
 
     function tokenURI(uint256 id) public view returns (string memory) {
+        require(_ownerOf[id] != address(0), "NOT_MINTED");
         return string(abi.encodePacked(baseUri, "metadata/", toString(id), ".json"));
     }
 
@@ -159,6 +161,7 @@ contract Identity {
         unchecked {
             _balanceOf[to]++;
             totalSupply++;
+            _startId++;
         }
 
         _ownerOf[id] = to;
