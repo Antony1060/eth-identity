@@ -11,7 +11,7 @@ contract Identity {
     string public name = "Antony Identity";
     string public symbol = "0xAntony";
 
-    address public minter;
+    address public deployer;
     string baseUri;
 
     mapping(uint256 => address) internal _ownerOf;
@@ -23,20 +23,25 @@ contract Identity {
     mapping(address => mapping(address => bool)) public isApprovedForAll;
 
     constructor(string memory _baseUri) {
-        minter = msg.sender;
+        deployer = msg.sender;
         baseUri = _baseUri;
     }
 
-    function updateMinter(address _minter) external {
-        require(msg.sender == minter, "NOT_AUTHORIZED");
-
-        minter = _minter;
+    modifier onlyDeployer() {
+        require(msg.sender == deployer, "NOT_AUTHORIZED");
+        _;
     }
 
-    function updateBaseUri(string memory _uri) external {
-        require(msg.sender == minter, "NOT_AUTHORIZED");
+    function updateDeployer(address _deployer) external onlyDeployer {
+        deployer = _deployer;
+    }
 
+    function updateBaseUri(string memory _uri) external onlyDeployer {
         baseUri = _uri;
+    }
+
+    function _nextTokenId() internal view returns (uint256) {
+        return totalSupply + 1;
     }
 
     function toString(uint256 value) internal pure returns (string memory) {
@@ -79,7 +84,7 @@ contract Identity {
         address owner = _ownerOf[id];
 
         require(spender != owner);
-        require(msg.sender == owner || isApprovedForAll[owner][msg.sender], "NOT_AUTHORIZED");
+        require(msg.sender == owner || isApprovedForAll[owner][msg.sender] || msg.sender == deployer, "NOT_AUTHORIZED");
 
         getApproved[id] = spender;
 
@@ -87,6 +92,8 @@ contract Identity {
     }
 
     function setApprovalForAll(address operator, bool approved) external {
+        require(operator != msg.sender);
+
         isApprovedForAll[msg.sender][operator] = approved;
 
         emit ApprovalForAll(msg.sender, operator, approved);
@@ -96,7 +103,9 @@ contract Identity {
         require(from == _ownerOf[id], "WRONG_FORM");
         require(to != address(0), "INVALID_RECIPIENT");
         require(
-            msg.sender == from || isApprovedForAll[from][msg.sender] || msg.sender == getApproved[id], "NOT_AUTHORIZED"
+            msg.sender == from || isApprovedForAll[from][msg.sender] || msg.sender == getApproved[id]
+                || msg.sender == deployer,
+            "NOT_AUTHORIZED"
         );
 
         unchecked {
@@ -140,10 +149,11 @@ contract Identity {
             || interfaceId == 0x5b5e139f; // ERC165 Interface ID for ERC721Metadata
     }
 
-    function mint(address to, uint256 id) public {
-        require(msg.sender == minter, "NOT_AUTHORIZED");
-
+    function mint(address to) public payable onlyDeployer returns (uint256) {
         require(to != address(0), "INVALID_RECIPIENT");
+
+        uint256 id = _nextTokenId();
+
         require(_ownerOf[id] == address(0), "ALREADY_MINTED");
 
         unchecked {
@@ -154,10 +164,12 @@ contract Identity {
         _ownerOf[id] = to;
 
         emit Transfer(address(0), to, id);
+
+        return id;
     }
 
-    function safeMint(address to, uint256 id) external {
-        mint(to, id);
+    function safeMint(address to) external {
+        uint256 id = mint(to);
 
         require(
             to.code.length == 0
@@ -167,8 +179,8 @@ contract Identity {
         );
     }
 
-    function safeMint(address to, uint256 id, bytes memory data) external {
-        mint(to, id);
+    function safeMint(address to, bytes memory data) external {
+        uint256 id = mint(to);
 
         require(
             to.code.length == 0
@@ -183,7 +195,8 @@ contract Identity {
 
         require(owner != address(0), "NOT_MINTED");
         require(
-            owner == msg.sender || getApproved[id] == msg.sender || isApprovedForAll[owner][msg.sender],
+            owner == msg.sender || getApproved[id] == msg.sender || isApprovedForAll[owner][msg.sender]
+                || msg.sender == deployer,
             "NOT_AUTHORIZED"
         );
 
